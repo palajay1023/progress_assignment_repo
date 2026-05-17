@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(claude-api)",
+      "Skill(claude-api:*)",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(python -m venv .venv)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Ajay\\\\market_summary\\\\backend\" -Force -Recurse)",
+      "Bash(Select-Object FullName)",
+      "Bash(Get-ChildItem -Path c:\\\\Users\\\\Ajay\\\\market_summary -Recurse -Force)",
+      "Bash(Select-Object -Property FullName)"
+    ]
+  }
+}

@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Market Intelligence Assistant</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f7fa; color: #1a1a2e; min-height: 100vh; }
+
+    /* Layout */
+    .app { display: flex; min-height: 100vh; }
+    .sidebar { width: 260px; background: #1a1a2e; color: #fff; padding: 20px; flex-shrink: 0; overflow-y: auto; }
+    .main { flex: 1; padding: 32px; max-width: 960px; }
+
+    /* Sidebar */
+    .sidebar h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #8892b0; margin-bottom: 16px; }
+    .sidebar-run { padding: 10px 12px; border-radius: 8px; cursor: pointer; margin-bottom: 8px; border: 1px solid transparent; transition: all 0.15s; }
+    .sidebar-run:hover { background: #0f3460; border-color: #e94560; }
+    .sidebar-run.active { background: #0f3460; border-color: #e94560; }
+    .sidebar-run-topics { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sidebar-run-meta { font-size: 11px; color: #8892b0; margin-top: 3px; }
+    .status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
+    .dot-completed { background: #4caf50; }
+    .dot-failed { background: #f44336; }
+    .dot-pending, .dot-running { background: #ff9800; }
+
+    /* Header */
+    .header { margin-bottom: 32px; }
+    .header h1 { font-size: 26px; font-weight: 700; color: #1a1a2e; }
+    .header p { color: #555; margin-top: 6px; font-size: 14px; }
+
+    /* Form */
+    .card { background: #fff; border-radius: 12px; padding: 28px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); margin-bottom: 24px; }
+    .form-group { margin-bottom: 20px; }
+    label { display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 6px; }
+    input[type="text"], textarea, select {
+      width: 100%; padding: 10px 14px; border: 1.5px solid #ddd; border-radius: 8px;
+      font-size: 14px; outline: none; transition: border-color 0.15s; background: #fafafa;
+    }
+    input[type="text"]:focus, textarea:focus, select:focus { border-color: #e94560; background: #fff; }
+    textarea { resize: vertical; min-height: 90px; }
+    .checkbox-row { display: flex; align-items: flex-start; gap: 10px; padding: 12px 16px; background: #f0f4ff; border-radius: 8px; border: 1.5px solid #c7d7ff; }
+    .checkbox-row input[type="checkbox"] { width: 16px; height: 16px; margin-top: 2px; cursor: pointer; accent-color: #e94560; flex-shrink: 0; }
+    .checkbox-row .checkbox-text { font-size: 13px; color: #444; }
+    .checkbox-row .checkbox-text strong { color: #1a1a2e; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 28px; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+    .btn-primary { background: #e94560; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #c73652; }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-secondary { background: #eee; color: #444; font-size: 13px; padding: 8px 16px; }
+    .btn-secondary:hover { background: #ddd; }
+    .error-msg { color: #e94560; font-size: 13px; margin-top: 8px; }
+
+    /* Progress */
+    .steps { display: flex; gap: 0; margin-bottom: 28px; }
+    .step { flex: 1; text-align: center; padding: 10px 4px; font-size: 12px; font-weight: 600; color: #aaa; border-bottom: 3px solid #e0e0e0; transition: all 0.3s; }
+    .step.active { color: #e94560; border-color: #e94560; }
+    .step.done { color: #4caf50; border-color: #4caf50; }
+    .step-detail { font-size: 13px; color: #555; margin-bottom: 16px; font-style: italic; }
+
+    /* URL table */
+    .url-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .url-table th { text-align: left; padding: 8px 12px; background: #f5f7fa; color: #666; font-weight: 600; border-bottom: 1px solid #eee; }
+    .url-table td { padding: 7px 12px; border-bottom: 1px solid #f0f0f0; word-break: break-all; }
+    .badge { display: inline-block; padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 700; }
+    .badge-success { background: #e6f4ea; color: #2e7d32; }
+    .badge-failed { background: #fdecea; color: #c62828; }
+    .badge-scanned_pdf { background: #fff3e0; color: #e65100; }
+    .badge-pending { background: #f5f5f5; color: #777; }
+
+    /* Report */
+    .section-title { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #f0f0f0; }
+    .exec-summary { font-size: 15px; line-height: 1.7; color: #333; }
+
+    /* Theme cards */
+    .theme-card { background: #fff; border-radius: 10px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 6px rgba(0,0,0,0.06); border-left: 4px solid #e94560; }
+    .theme-title { font-size: 15px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
+    .theme-desc { font-size: 13px; color: #666; margin-bottom: 14px; }
+    .insight-row { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+    .insight-claim { font-size: 13px; color: #333; flex: 1; min-width: 200px; }
+    .source-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: #f0f4ff; color: #3b5bdb; border-radius: 12px; font-size: 11px; text-decoration: none; border: 1px solid #c7d7ff; white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+    .source-chip:hover { background: #dbe4ff; }
+    .verdict-badge { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; white-space: nowrap; cursor: help; }
+    .verdict-supported { background: #e6f4ea; color: #2e7d32; }
+    .verdict-partial { background: #fff8e1; color: #f57f17; }
+    .verdict-unsupported { background: #fdecea; color: #c62828; }
+
+    /* Competitor table */
+    .comp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .comp-table th { text-align: left; padding: 10px 12px; background: #f5f7fa; color: #666; font-weight: 600; border-bottom: 2px solid #eee; }
+    .comp-table td { padding: 10px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+    .comp-table tr:hover td { background: #fafafa; }
+    .comp-name { font-weight: 700; color: #1a1a2e; }
+
+    /* Trends */
+    .trend-card { background: #fff; border-radius: 10px; padding: 16px 20px; margin-bottom: 12px; box-shadow: 0 1px 6px rgba(0,0,0,0.06); display: flex; align-items: flex-start; gap: 12px; }
+    .trend-icon { font-size: 20px; flex-shrink: 0; }
+    .trend-title { font-size: 14px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
+    .trend-desc { font-size: 13px; color: #555; }
+
+    /* Failed state */
+    .error-box { background: #fdecea; border-radius: 10px; padding: 20px; border-left: 4px solid #e94560; }
+    .error-box h3 { color: #c62828; margin-bottom: 8px; }
+    .error-box p { font-size: 13px; color: #555; line-height: 1.6; }
+
+    /* Spinner */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { width: 18px; height: 18px; border: 3px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+
+    .new-run-btn { margin-bottom: 24px; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef } = React;
+
+const STEPS = [
+  { key: "discovering_urls", label: "Discovering" },
+  { key: "fetching_content", label: "Fetching" },
+  { key: "analyzing_sources", label: "Analyzing" },
+  { key: "generating_report", label: "Generating" },
+  { key: "verifying_claims", label: "Verifying" },
+  { key: "completed", label: "Complete" },
+];
+
+const STEP_ORDER = STEPS.map(s => s.key);
+
+function stepIndex(status) {
+  const i = STEP_ORDER.indexOf(status);
+  return i >= 0 ? i : -1;
+}
+
+function VerdictBadge({ verdict, reason }) {
+  const map = {
+    supported: { cls: "verdict-supported", icon: "✓", label: "Supported" },
+    partial:   { cls: "verdict-partial",   icon: "~", label: "Partial" },
+    unsupported: { cls: "verdict-unsupported", icon: "✗", label: "Unsupported" },
+  };
+  const v = map[verdict] || map.unsupported;
+  return (
+    <span className={`verdict-badge ${v.cls}`} title={reason}>
+      {v.icon} {v.label}
+    </span>
+  );
+}
+
+function SourceChip({ url }) {
+  let display;
+  try { display = new URL(url).hostname.replace("www.", ""); }
+  catch { display = url.slice(0, 30); }
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" className="source-chip" title={url}>
+      🔗 {display}
+    </a>
+  );
+}
+
+// ── Input Form ───────────────────────────────────────────────────────────────
+function InputForm({ onSubmit }) {
+  const [topics, setTopics] = useState("");
+  const [urls, setUrls] = useState("");
+  const [role, setRole] = useState("general");
+  const [discoverRelated, setDiscoverRelated] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const hasUrls = urls.trim().length > 0;
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!topics.trim() && !urls.trim()) {
+      setError("Please enter at least one topic or one URL.");
+      return;
+    }
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topics,
+          urls,
+          role,
+          discover_related: hasUrls ? discoverRelated : false,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Failed to start run.");
+      onSubmit(data.run_id);
+    } catch (err) {
+      setError(err.message);
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="card">
+      <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label>Competitors or Topics <span style={{color:"#aaa",fontWeight:400}}>(comma-separated, optional)</span></label>
+          <input
+            type="text"
+            placeholder="e.g. Notion, Linear, Jira"
+            value={topics}
+            onChange={e => setTopics(e.target.value)}
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Source URLs <span style={{color:"#aaa",fontWeight:400}}>(one per line, optional)</span></label>
+          <textarea
+            placeholder={"https://notion.so/blog\nhttps://linear.app/changelog"}
+            value={urls}
+            onChange={e => setUrls(e.target.value)}
+          />
+        </div>
+
+        {hasUrls && (
+          <div className="form-group">
+            <div className="checkbox-row">
+              <input
+                type="checkbox"
+                id="discover"
+                checked={discoverRelated}
+                onChange={e => setDiscoverRelated(e.target.checked)}
+              />
+              <label htmlFor="discover" className="checkbox-text" style={{margin:0,cursor:"pointer"}}>
+                <strong>Also discover related links from the web</strong><br/>
+                <span style={{color:"#666"}}>We'll search Tavily for additional relevant sources beyond the URLs you provided.</span>
+              </label>
+            </div>
+          </div>
+        )}
+
+        <div className="form-group">
+          <label>Analyst Role</label>
+          <select value={role} onChange={e => setRole(e.target.value)}>
+            <option value="general">General Analyst — thorough and balanced</option>
+            <option value="pm">Product Manager — features & roadmap signals</option>
+            <option value="exec">Executive — strategic implications</option>
+          </select>
+        </div>
+
+        {error && <div className="error-msg">{error}</div>}
+
+        <button className="btn btn-primary" type="submit" disabled={loading}>
+          {loading ? <><div className="spinner"></div> Starting...</> : "Generate Intelligence Report"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+// ── Progress View ────────────────────────────────────────────────────────────
+function ProgressView({ runId, onComplete }) {
+  const [data, setData] = useState(null);
+  const intervalRef = useRef(null);
+
+  const poll = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/runs/${runId}/status`);
+      const json = await res.json();
+      setData(json);
+      if (json.status === "completed" || json.status === "failed") {
+        clearInterval(intervalRef.current);
+        onComplete(json);
+      }
+    } catch {}
+  }, [runId, onComplete]);
+
+  useEffect(() => {
+    poll();
+    intervalRef.current = setInterval(poll, 3000);
+    return () => clearInterval(intervalRef.current);
+  }, [poll]);
+
+  if (!data) return <div className="card"><p>Connecting...</p></div>;
+
+  const curIdx = stepIndex(data.status);
+
+  return (
+    <div>
+      <div className="steps">
+        {STEPS.map((s, i) => (
+          <div
+            key={s.key}
+            className={`step ${i < curIdx ? "done" : i === curIdx ? "active" : ""}`}
+          >
+            {i < curIdx ? "✓ " : ""}{s.label}
+          </div>
+        ))}
+      </div>
+
+      <div className="card">
+        {data.current_step_detail && (
+          <p className="step-detail">⏳ {data.current_step_detail}</p>
+        )}
+
+        {data.source_fetches && data.source_fetches.length > 0 && (
+          <table className="url-table">
+            <thead>
+              <tr>
+                <th>URL</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.source_fetches.map((f, i) => (
+                <tr key={i}>
+                  <td><a href={f.url} target="_blank" rel="noopener noreferrer" style={{color:"#3b5bdb",fontSize:12}}>{f.url}</a></td>
+                  <td><span className={`badge badge-${f.fetch_status}`}>{f.fetch_status}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Report View ──────────────────────────────────────────────────────────────
+function ReportView({ data, onNewRun }) {
+  const report = data.report_json;
+
+  if (data.status === "failed") {
+    return (
+      <div>
+        <button className="btn btn-secondary new-run-btn" onClick={onNewRun}>← New Report</button>
+        <div className="error-box">
+          <h3>Run Failed</h3>
+          <p>{data.error_message || "An unexpected error occurred."}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!report) return <div className="card"><p>No report data.</p></div>;
+
+  const meta = report._meta || {};
+
+  return (
+    <div>
+      <button className="btn btn-secondary new-run-btn" onClick={onNewRun}>← New Report</button>
+
+      {/* Executive Summary */}
+      <div className="card">
+        <div className="section-title">Executive Summary</div>
+        <p className="exec-summary">{report.executive_summary}</p>
+      </div>
+
+      {/* Key Themes */}
+      {report.themes && report.themes.length > 0 && (
+        <div className="card">
+          <div className="section-title">Key Themes</div>
+          {report.themes.map((theme, ti) => (
+            <div className="theme-card" key={ti}>
+              <div className="theme-title">{theme.title}</div>
+              <div className="theme-desc">{theme.description}</div>
+              {(theme.insights || []).map((ins, ii) => (
+                <div className="insight-row" key={ii}>
+                  <div className="insight-claim">• {ins.claim}</div>
+                  <SourceChip url={ins.source_url} />
+                  <VerdictBadge verdict={ins.verdict} reason={ins.verdict_reason} />
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Competitor Activities */}
+      {report.competitor_activities && report.competitor_activities.length > 0 && (
+        <div className="card">
+          <div className="section-title">Notable Competitor Activities</div>
+          <table className="comp-table">
+            <thead>
+              <tr>
+                <th>Competitor</th>
+                <th>Activity</th>
+                <th>Significance</th>
+                <th>Source</th>
+                <th>Verdict</th>
+              </tr>
+            </thead>
+            <tbody>
+              {report.competitor_activities.map((a, i) => (
+                <tr key={i}>
+                  <td><span className="comp-name">{a.competitor}</span></td>
+                  <td>{a.activity}</td>
+                  <td style={{color:"#555",fontSize:12}}>{a.significance}</td>
+                  <td><SourceChip url={a.source_url} /></td>
+                  <td><VerdictBadge verdict={a.verdict} reason={a.verdict_reason} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Key Trends */}
+      {report.key_trends && report.key_trends.length > 0 && (
+        <div className="card">
+          <div className="section-title">Key Trends</div>
+          {report.key_trends.map((t, i) => (
+            <div className="trend-card" key={i}>
+              <div className="trend-icon">📈</div>
+              <div>
+                <div className="trend-title">{t.trend}</div>
+                <div className="trend-desc">{t.description}</div>
+                <div style={{marginTop:8}}>
+                  <SourceChip url={t.source_url} />
+                  {t.verdict && <VerdictBadge verdict={t.verdict} reason={t.verdict_reason} />}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+// ── Sidebar ──────────────────────────────────────────────────────────────────
+function Sidebar({ runs, activeId, onSelect, onNewRun }) {
+  return (
+    <div className="sidebar">
+      <h2>Previous Runs</h2>
+      <button className="btn btn-primary" style={{width:"100%",marginBottom:16,justifyContent:"center"}} onClick={onNewRun}>
+        + New Report
+      </button>
+      {runs.length === 0 && <div style={{color:"#8892b0",fontSize:13}}>No runs yet.</div>}
+      {runs.map(r => {
+        const dotCls = r.status === "completed" ? "dot-completed"
+          : r.status === "failed" ? "dot-failed" : "dot-pending";
+        const label = r.topics && r.topics.length > 0
+          ? r.topics.join(", ")
+          : `Run ${r.id.slice(0, 8)}`;
+        const date = r.created_at ? new Date(r.created_at).toLocaleDateString() : "";
+        return (
+          <div
+            key={r.id}
+            className={`sidebar-run ${activeId === r.id ? "active" : ""}`}
+            onClick={() => onSelect(r.id)}
+          >
+            <div className="sidebar-run-topics">{label}</div>
+            <div className="sidebar-run-meta">
+              <span className={`status-dot ${dotCls}`}></span>
+              {r.status} · {date}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── App ──────────────────────────────────────────────────────────────────────
+function App() {
+  const [view, setView] = useState("form"); // form | progress | report
+  const [activeRunId, setActiveRunId] = useState(null);
+  const [reportData, setReportData] = useState(null);
+  const [runs, setRuns] = useState([]);
+
+  async function fetchRuns() {
+    try {
+      const res = await fetch("/api/runs");
+      const data = await res.json();
+      setRuns(data);
+    } catch {}
+  }
+
+  useEffect(() => {
+    fetchRuns();
+    const id = setInterval(fetchRuns, 10000);
+    return () => clearInterval(id);
+  }, []);
+
+  function handleFormSubmit(runId) {
+    setActiveRunId(runId);
+    setView("progress");
+    fetchRuns();
+  }
+
+  function handleProgressComplete(data) {
+    setReportData(data);
+    setView("report");
+    fetchRuns();
+  }
+
+  async function handleSidebarSelect(runId) {
+    setActiveRunId(runId);
+    try {
+      const res = await fetch(`/api/runs/${runId}/status`);
+      const data = await res.json();
+      setReportData(data);
+      setView(data.status === "completed" || data.status === "failed" ? "report" : "progress");
+    } catch {}
+  }
+
+  function handleNewRun() {
+    setView("form");
+    setActiveRunId(null);
+    setReportData(null);
+  }
+
+  return (
+    <div className="app">
+      <Sidebar
+        runs={runs}
+        activeId={activeRunId}
+        onSelect={handleSidebarSelect}
+        onNewRun={handleNewRun}
+      />
+      <div className="main">
+        <div className="header">
+          <h1>Market Intelligence Assistant</h1>
+          <p>Collect, analyze, and summarize competitor activity from public sources.</p>
+        </div>
+
+        {view === "form" && <InputForm onSubmit={handleFormSubmit} />}
+        {view === "progress" && (
+          <ProgressView runId={activeRunId} onComplete={handleProgressComplete} />
+        )}
+        {view === "report" && (
+          <ReportView data={reportData} onNewRun={handleNewRun} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
