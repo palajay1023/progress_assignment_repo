@@ -131,8 +131,8 @@ async def run_pipeline(
         if not map_results:
             _update_run(db, run_id, status="failed",
                         error_message=(
-                            f"Claude analysis returned no results for any of the {len(successful)} fetched sources. "
-                            f"Check your OPENROUTER_API_KEY and CLAUDE_MODEL in .env, then check the server logs for details."
+                            f"LLM analysis returned no results for any of the {len(successful)} fetched sources. "
+                            f"Check your LLM_API_KEY and LLM_MODEL in .env, then check the server logs for details."
                         ))
             return
 

@@ -103,12 +103,12 @@ async def _tavily_extract(url: str, base: dict) -> dict:
 
 
 async def discover_urls(topic: str) -> list[str]:
-    """Generate search queries via Claude, run them through Tavily Search, return deduplicated URLs."""
+    """Generate search queries via LLM, run them through Tavily Search, return deduplicated URLs."""
     from openai import AsyncOpenAI
 
     client = AsyncOpenAI(api_key=LLM_API_KEY, base_url=LLM_BASE_URL)
 
-    # Step 1 — Ask Claude for 3 targeted search queries
+    # Step 1 — Ask the LLM for 3 targeted search queries
     system_prompt = (
         "You are a market research assistant. Given a competitor or topic name, "
         "return exactly 3 targeted search queries to find recent news, product updates, "
@@ -130,9 +130,9 @@ async def discover_urls(topic: str) -> list[str]:
         raw = resp.choices[0].message.content.strip()
         queries = json.loads(raw)
         if not isinstance(queries, list):
-            queries = [f"{topic} product updates 2025", f"{topic} announcements", f"{topic} changelog"]
+            queries = [f"{topic} product updates 2025-26", f"{topic} announcements", f"{topic} changelog"]
     except Exception:
-        queries = [f"{topic} product updates 2025", f"{topic} announcements", f"{topic} changelog"]
+        queries = [f"{topic} product updates 2025-26", f"{topic} announcements", f"{topic} changelog"]
 
     # Step 2 — Run each query through Tavily Search
     all_urls: list[str] = []

@@ -1,3 +1,4 @@
+import re
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -50,7 +51,9 @@ def serve_frontend():
 async def create_run(body: RunCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     # Parse topics and URLs
     topics = [t.strip() for t in body.topics.split(",") if t.strip()] if body.topics else []
-    urls = [u.strip() for u in body.urls.splitlines() if u.strip()] if body.urls else []
+
+    raw_urls = re.split(r"[\n,\s]+", body.urls) if body.urls else []
+    urls = [u.strip() for u in raw_urls if u.strip().startswith(("http://", "https://"))]
 
     if not topics and not urls:
         raise HTTPException(status_code=400, detail="Provide at least one topic or URL.")
@@ -72,8 +75,7 @@ async def create_run(body: RunCreate, background_tasks: BackgroundTasks, db: Ses
 
     def run_in_background():
         bg_db = SessionLocal()
-        # ProactorEventLoop (Windows default) raises "Event loop is closed" during
-        # httpx connection cleanup. SelectorEventLoop handles it cleanly.
+
         if sys.platform == "win32":
             loop = asyncio.SelectorEventLoop()
         else:
